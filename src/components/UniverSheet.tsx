@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { createUniver, LocaleType } from "@univerjs/presets";
 import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import UniverPresetSheetsCoreEnUS from "@univerjs/preset-sheets-core/locales/en-US";
+import { AIChatPanel } from "./AIChatPanel";
+import { UniverAIChatToolbarPlugin } from "../plugins/ai-chat-toolbar.plugin";
 
 // Import Univer CSS
 import "@univerjs/preset-sheets-core/lib/index.css";
@@ -13,6 +15,7 @@ export default function UniverSheet() {
   const containerRef = useRef<HTMLDivElement>(null);
   const univerAPIRef = useRef<any>(null);
   const initializedRef = useRef(false);
+  const sidebarRef = useRef<any>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -30,7 +33,7 @@ export default function UniverSheet() {
     initializedRef.current = true;
 
     // Initialize Univer using the official preset system
-    const { univerAPI } = createUniver({
+    const { univerAPI, univer } = createUniver({
       locale: LocaleType.EN_US,
       locales: {
         [LocaleType.EN_US]: UniverPresetSheetsCoreEnUS,
@@ -42,6 +45,14 @@ export default function UniverSheet() {
       ],
     });
 
+    // Register our custom toolbar plugin
+    univer.registerPlugin(UniverAIChatToolbarPlugin);
+
+    // Register AI Chat Panel component with Univer
+    univerAPI.registerComponent("AIChatPanelComponent", AIChatPanel);
+
+    console.log("✅ AI Chat component registered with Univer");
+
     // Create a new spreadsheet with initial data
     univerAPI.createUniverSheet({
       name: "AI Spreadsheet",
@@ -49,6 +60,37 @@ export default function UniverSheet() {
 
     // Store the univerAPI reference
     univerAPIRef.current = univerAPI;
+
+    // Function to toggle AI Chat sidebar
+    const toggleAIChat = () => {
+      if (sidebarRef.current) {
+        // Close existing sidebar
+        sidebarRef.current.dispose();
+        sidebarRef.current = null;
+      } else {
+        // Open new sidebar using Univer's native API
+        sidebarRef.current = univerAPI.openSidebar({
+          header: { title: "AI Assistant" },
+          children: { label: "AIChatPanelComponent" },
+          onClose: () => {
+            sidebarRef.current = null;
+          },
+          width: 400,
+        });
+      }
+    };
+
+    // Expose toggle function to window for toolbar button
+    (window as any).toggleAIChat = toggleAIChat;
+
+    // Keyboard shortcut: Cmd+K / Ctrl+K
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        toggleAIChat();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
 
     // Expose API to window for AI chat panel to access
     (window as any).univerAPI = {
@@ -168,10 +210,13 @@ export default function UniverSheet() {
     console.log("📝 Try double-clicking on a cell to edit");
     console.log("⌨️  Or press F2 after selecting a cell");
 
-    // Note: We don't dispose on cleanup due to StrictMode double-render issue
-    // The univerAPI will persist across component re-renders
+    // Cleanup on unmount
     return () => {
-      console.log("🧹 Cleanup called (not disposing due to StrictMode)");
+      console.log("🧹 Cleanup called");
+      window.removeEventListener("keydown", handleKeyDown);
+      if (sidebarRef.current) {
+        sidebarRef.current.dispose();
+      }
     };
   }, []);
 
@@ -180,6 +225,7 @@ export default function UniverSheet() {
       className="w-full h-full relative"
       style={{ width: "100%", height: "100%", minHeight: "100vh" }}
     >
+      {/* Spreadsheet Container - Univer will render the toolbar and sidebar natively */}
       <div ref={containerRef} className="univer-container" />
     </div>
   );
