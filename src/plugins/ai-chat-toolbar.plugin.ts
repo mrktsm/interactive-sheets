@@ -6,8 +6,9 @@ import {
 } from "@univerjs/core";
 import type { Dependency } from "@univerjs/core";
 import { Inject, Injector } from "@univerjs/core";
-import { ComponentManager, IMenuManagerService } from "@univerjs/ui";
+import { ComponentManager, IMenuManagerService, MenuItemType } from "@univerjs/ui";
 import { RibbonStartGroup } from "@univerjs/ui";
+import { TbLayoutSidebarRight } from "react-icons/tb";
 
 const AI_CHAT_COMMAND_ID = "ai-chat.toggle";
 const AI_CHAT_TOOLBAR_PLUGIN_NAME = "ai-chat-toolbar-plugin";
@@ -45,7 +46,13 @@ export class AIChatToolbarController extends Disposable {
     super();
 
     this._initCommands();
+    this._registerIcon();
     this._initMenus();
+  }
+
+  private _registerIcon(): void {
+    // Register the custom React icon component with Univer
+    this._componentManager.register("TbLayoutSidebarRight", TbLayoutSidebarRight);
   }
 
   private _initCommands(): void {
@@ -54,17 +61,16 @@ export class AIChatToolbarController extends Disposable {
   }
 
   private _initMenus(): void {
-    // Add the AI Chat button to Univer's native toolbar
+    // Add the AI Chat button to Univer's native toolbar (aligned to the right, no chevron)
     this._menuManagerService.mergeMenu({
       [RibbonStartGroup.OTHERS]: {
         [AI_CHAT_COMMAND_ID]: {
-          order: 100,
+          order: 999999, // Very high order value to position at the far right
           menuItemFactory: () => ({
             id: AI_CHAT_COMMAND_ID,
-            type: 2, // BUTTON type
-            title: "AI Chat",
+            type: MenuItemType.BUTTON, // Simple button (no dropdown/chevron)
             tooltip: "Open AI Assistant (Cmd+K)",
-            icon: "ChatSingle",
+            icon: "TbLayoutSidebarRight",
           }),
         },
       },
